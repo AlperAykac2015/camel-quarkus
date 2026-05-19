@@ -1,0 +1,10 @@
+- route:
+    id: yaml-bean-route
+    from:
+      uri: "platform-http:/yaml/bean"
+      steps:
+        - setBody:
+            constant: "Original request"
+        - bean:
+            ref: "greetingBean"
+            method: "enrich"

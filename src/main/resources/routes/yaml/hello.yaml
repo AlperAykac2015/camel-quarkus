@@ -1,0 +1,9 @@
+- route:
+    id: yaml-hello-route
+    from:
+      uri: "platform-http:/yaml/hello"
+      steps:
+        - log:
+            message: "Received request on /yaml/hello"
+        - setBody:
+            simple: "Hello from Camel Quarkus YAML DSL"
