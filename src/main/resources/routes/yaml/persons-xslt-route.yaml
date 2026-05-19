@@ -1,0 +1,79 @@
+- onException:
+    exception:
+      - "com.hmrc.demo.error.InvalidAgeException"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "Age validation failed: ${exception.message}"
+      - setHeader:
+          name: CamelHttpResponseCode
+          constant: "400"
+      - setHeader:
+          name: Content-Type
+          constant: "text/plain"
+      - setBody:
+          simple: "${exception.message}"
+
+- onException:
+    exception:
+      - "java.lang.Exception"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "Request failed: ${exception.message}"
+      - setHeader:
+          name: CamelHttpResponseCode
+          constant: "400"
+      - setHeader:
+          name: Content-Type
+          constant: "text/plain"
+      - setBody:
+          constant: "Bad request: request validation or transformation failed."
+
+- route:
+    id: persons-json-to-xml-xslt-route
+    from:
+      uri: "platform-http:/persons/transform?httpMethodRestrict=POST"
+      steps:
+        - log:
+            message: "Received JSON persons request"
+
+        - bean:
+            ref: "ageValidationBean"
+            method: "validate"
+
+        - log:
+            message: "Age validation passed"
+
+        - to: "json-validator:schemas/persons-input.schema.json"
+
+        - log:
+            message: "Input JSON schema validation passed"
+
+        - bean:
+            ref: "jsonToInputXmlBean"
+            method: "convert"
+
+        - log:
+            message: "Converted JSON to internal XML: ${body}"
+
+        - to: "validator:schemas/persons-input.xsd"
+
+        - log:
+            message: "Input XML schema validation passed"
+
+        - to: "xslt:xslt/persons-transform.xsl"
+
+        - log:
+            message: "XSLT transformation completed: ${body}"
+
+        - to: "validator:schemas/persons-output.xsd"
+
+        - log:
+            message: "Output XML schema validation passed"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/xml"

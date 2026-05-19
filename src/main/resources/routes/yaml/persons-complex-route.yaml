@@ -1,0 +1,36 @@
+- on-exception:
+    exception:
+      - "java.lang.Exception"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "Complex route failed: ${exception.message}"
+      - set-header:
+          name: CamelHttpResponseCode
+          constant: "400"
+      - set-header:
+          name: Content-Type
+          constant: "text/plain"
+      - set-body:
+          simple: "Bad request: ${exception.message}"
+
+- route:
+    id: persons-complex-route
+    from:
+      uri: "platform-http:/persons/complex-transform?httpMethodRestrict=POST"
+      steps:
+        - log:
+            message: "Received complex persons request"
+
+        - to: "json-validator:schemas/persons-input.schema.json"
+
+        - bean:
+            ref: "personComplexTransformBean"
+            method: "transform"
+
+        - to: "validator:schemas/persons-complex-output.xsd"
+
+        - set-header:
+            name: Content-Type
+            constant: "application/xml"
