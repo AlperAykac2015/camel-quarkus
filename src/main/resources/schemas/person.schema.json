@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Person",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "surname", "age", "address"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 3
+    },
+    "surname": {
+      "type": "string",
+      "minLength": 3
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 129
+    },
+    "address": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

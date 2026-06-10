@@ -1,0 +1,149 @@
+- onException:
+    exception:
+      - "java.lang.Exception"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "Person validation or business route failed: ${exception.message}"
+      - setHeader:
+          name: CamelHttpResponseCode
+          constant: "400"
+      - setHeader:
+          name: Content-Type
+          constant: "application/json"
+      - setBody:
+          constant: |
+            {
+              "status": "VALIDATION_FAILED",
+              "message": "Person is invalid. name and surname must be at least 3 characters, age must be between 0 and 129, and address must not be null or empty."
+            }
+
+- route:
+    id: person-validation-decision-route
+    from:
+      uri: "platform-http:/v1/query/person/validate-decision?httpMethodRestrict=POST"
+      steps:
+        - log:
+            message: "Received Person JSON: ${body}"
+
+        - to: "json-validator:schemas/person.schema.json"
+
+        - log:
+            message: "Person schema validation passed"
+
+        - setProperty:
+            name: personName
+            jsonpath: "$.name"
+
+        - setProperty:
+            name: personSurname
+            jsonpath: "$.surname"
+
+        - setProperty:
+            name: personAge
+            jsonpath: "$.age"
+
+        - setProperty:
+            name: personAddress
+            jsonpath: "$.address"
+
+        - log:
+            message: "Validated person => name=${exchangeProperty.personName}, surname=${exchangeProperty.personSurname}, age=${exchangeProperty.personAge}, address=${exchangeProperty.personAddress}"
+
+        - choice:
+            when:
+              - simple: "${exchangeProperty.personAge} < 18"
+                steps:
+                  - log:
+                      message: "Business rule matched: MINOR"
+                  - setProperty:
+                      name: businessStatus
+                      constant: "MINOR"
+                  - setProperty:
+                      name: businessMessage
+                      constant: "Person is valid but under 18. Minor customer rules apply."
+
+              - simple: "${exchangeProperty.personAge} >= 65"
+                steps:
+                  - log:
+                      message: "Business rule matched: SENIOR"
+                  - setProperty:
+                      name: businessStatus
+                      constant: "SENIOR"
+                  - setProperty:
+                      name: businessMessage
+                      constant: "Person is valid and senior customer rules apply."
+
+              - simple: "${exchangeProperty.personAddress} == 'London'"
+                steps:
+                  - log:
+                      message: "Business rule matched: LONDON_CUSTOMER"
+                  - setProperty:
+                      name: businessStatus
+                      constant: "LONDON_CUSTOMER"
+                  - setProperty:
+                      name: businessMessage
+                      constant: "Person is valid and London-specific rules apply."
+
+              - simple: "${exchangeProperty.personSurname} == 'VIP'"
+                steps:
+                  - log:
+                      message: "Business rule matched: VIP"
+                  - setProperty:
+                      name: businessStatus
+                      constant: "VIP"
+                  - setProperty:
+                      name: businessMessage
+                      constant: "Person is valid and VIP customer rules apply."
+
+              - simple: "${exchangeProperty.personName} == 'Admin'"
+                steps:
+                  - log:
+                      message: "Business rule matched: ADMIN_NAME"
+                  - setProperty:
+                      name: businessStatus
+                      constant: "ADMIN_NAME"
+                  - setProperty:
+                      name: businessMessage
+                      constant: "Person is valid but uses a reserved business name."
+
+            otherwise:
+              steps:
+                - log:
+                    message: "Business rule matched: STANDARD"
+                - setProperty:
+                    name: businessStatus
+                    constant: "STANDARD"
+                - setProperty:
+                    name: businessMessage
+                    constant: "Person is valid and standard customer rules apply."
+
+        - setHeader:
+            name: CamelHttpResponseCode
+            constant: "200"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/json"
+
+        - setBody:
+            simple: |
+              {
+                "validation": {
+                  "status": "VALID"
+                },
+                "person": {
+                  "name": "${exchangeProperty.personName}",
+                  "surname": "${exchangeProperty.personSurname}",
+                  "age": ${exchangeProperty.personAge},
+                  "address": "${exchangeProperty.personAddress}"
+                },
+                "businessDecision": {
+                  "status": "${exchangeProperty.businessStatus}",
+                  "message": "${exchangeProperty.businessMessage}"
+                }
+              }
+
+        - log:
+            message: "Returning person validation and business decision response: ${body}"

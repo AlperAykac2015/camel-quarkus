@@ -1,0 +1,42 @@
+- route:
+    id: person-xml-to-json-route
+    from:
+      uri: "platform-http:/v1/query/person/v2"
+      parameters:
+        httpMethodRestrict: "POST"
+      steps:
+        - log:
+            loggingLevel: INFO
+            message: "XML_TO_JSON_STEP_1 incoming XML body=${body}"
+
+        - to:
+            uri: "xslt:xslt/person-xml-to-json.xsl"
+
+        - log:
+            loggingLevel: INFO
+            message: "XML_TO_JSON_STEP_2 converted JSON before backend=${body}"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/json; charset=UTF-8"
+
+        - setHeader:
+            name: Accept
+            constant: "application/json"
+
+        - removeHeader:
+            name: CamelHttpPath
+
+        - removeHeader:
+            name: CamelHttpQuery
+
+        - log:
+            loggingLevel: INFO
+            message: "XML_TO_JSON_STEP_3 sending JSON to backend=${body}"
+
+        - toD:
+            uri: "http://localhost:8085/v1/query/person?bridgeEndpoint=true"
+
+        - log:
+            loggingLevel: INFO
+            message: "XML_TO_JSON_STEP_4 backend response=${body}"

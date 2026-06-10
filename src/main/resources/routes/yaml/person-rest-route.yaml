@@ -1,0 +1,76 @@
+- onException:
+    exception:
+      - "java.lang.Exception"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "Person proxy route failed: ${exception.message}"
+      - setHeader:
+          name: CamelHttpResponseCode
+          constant: "500"
+      - setHeader:
+          name: Content-Type
+          constant: "text/plain"
+      - setBody:
+          simple: "Person service call failed: ${exception.message}"
+
+- route:
+    id: get-person-from-target-service-route
+    from:
+      uri: "platform-http:/v1/query/person/{id}?httpMethodRestrict=GET"
+      steps:
+        - log:
+            message: "Incoming GET on Camel app. id=${header.id}"
+
+        - removeHeaders:
+            pattern: "CamelHttp*"
+
+        - setHeader:
+            name: CamelHttpMethod
+            constant: "GET"
+
+        - toD:
+            uri: "http://localhost:8085/v1/query/person/${header.id}?bridgeEndpoint=true&throwExceptionOnFailure=false"
+
+        - log:
+            message: "Target GET service returned status=${header.CamelHttpResponseCode}, body=${body}"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/json"
+
+        - setBody:
+            simple: "${body}"
+
+- route:
+    id: create-person-on-target-service-route
+    from:
+      uri: "platform-http:/v1/query/person?httpMethodRestrict=POST"
+      steps:
+        - log:
+            message: "Incoming POST on Camel app. Person body=${body}"
+
+        - removeHeaders:
+            pattern: "CamelHttp*"
+
+        - setHeader:
+            name: CamelHttpMethod
+            constant: "POST"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/json"
+
+        - to:
+            uri: "http://localhost:8085/v1/query/person?bridgeEndpoint=true&throwExceptionOnFailure=false"
+
+        - log:
+            message: "Target POST service returned status=${header.CamelHttpResponseCode}, body=${body}"
+
+        - setHeader:
+            name: Content-Type
+            constant: "application/json"
+
+        - setBody:
+            simple: "${body}"

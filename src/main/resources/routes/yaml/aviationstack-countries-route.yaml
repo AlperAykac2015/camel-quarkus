@@ -1,0 +1,44 @@
+- onException:
+    exception:
+      - "java.lang.Exception"
+    handled:
+      constant: true
+    steps:
+      - log:
+          message: "AviationStack route failed: ${exception.message}"
+      - setHeader:
+          name: CamelHttpResponseCode
+          constant: "500"
+      - setHeader:
+          name: Content-Type
+          constant: "text/plain"
+      - setBody:
+          simple: "http-status=500, message=Failed to call AviationStack API: ${exception.message}"
+
+- route:
+    id: aviationstack-countries-route
+    from:
+      uri: "platform-http:/aviationstack/countries?httpMethodRestrict=GET"
+      steps:
+        - log:
+            message: "Calling AviationStack countries API"
+
+        - removeHeaders:
+            pattern: "CamelHttp*"
+
+        - setHeader:
+            name: CamelHttpMethod
+            constant: "GET"
+
+        - to:
+            uri: "https://api.aviationstack.com/v1/countries?access_key={{aviationstack.api.key}}&bridgeEndpoint=true&throwExceptionOnFailure=false"
+
+        - log:
+            message: "AviationStack returned HTTP status ${header.CamelHttpResponseCode}"
+
+        - setHeader:
+            name: Content-Type
+            constant: "text/plain"
+
+        - setBody:
+            simple: "http-status=${header.CamelHttpResponseCode}, message=${body}"
